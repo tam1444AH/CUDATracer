@@ -1,16 +1,8 @@
 ﻿CUDA_PATH     := C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.8
+NVCC          := "$(CUDA_PATH)/bin/nvcc.exe"
 
-HOST_COMPILER := cl
-
-NVCC           := "$(CUDA_PATH)/bin/nvcc.exe" -ccbin $(HOST_COMPILER)
-
-GENCODE_FLAGS  := -gencode arch=compute_86,code=sm_86
-
-NVCC_DBG       :=
-
-NVCCFLAGS      := $(NVCC_DBG) -m64
-NVCCFLAGS      += -rdc=true
-HOST_FLAGS     := /EHsc /std:c++14
+GENCODE_FLAGS := -gencode arch=compute_86,code=sm_86
+NVCCFLAGS     := -m64 -rdc=true
 
 SRCS = main.cu
 INCS = vec3.h ray.h hitable.h hitable_list.h sphere.h camera.h material.h moving_sphere.h aabb.h bvh.h plane.h box.h
@@ -18,16 +10,15 @@ INCS = vec3.h ray.h hitable.h hitable_list.h sphere.h camera.h material.h moving
 all: cudart.exe
 
 cudart.exe: $(SRCS) $(INCS)
-	@echo "Building $@ with CUDA Toolkit @ $(CUDA_PATH)"
-	$(NVCC) $(NVCCFLAGS) $(GENCODE_FLAGS) -Xcompiler "$(HOST_FLAGS)" \
-       -o $@ $(SRCS) $(LDFLAGS)
+	@echo Building $@ with CUDA Toolkit @ $(CUDA_PATH)
+	$(NVCC) $(NVCCFLAGS) $(GENCODE_FLAGS) -Xcompiler="/EHsc,/std:c++14" -o $@ $(SRCS)
 
 out.ppm: cudart.exe
-	@echo "Rendering image → $@"
+	@echo Rendering image → $@
 	./cudart.exe > $@
 
 out.jpg: out.ppm
-	@echo "Converting $< → $@"
+	@echo Converting $< → $@
 	magick convert out.ppm out.jpg
 
 profile: cudart.exe
