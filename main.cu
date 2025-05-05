@@ -225,8 +225,8 @@ __global__ void create_world(hitable** d_list, hitable** d_world, camera** d_cam
         // We save back the RNG state
         *rand_state = local_rand_state;
 
-        // We set up the world
-        *d_world = new hitable_list(d_list, 22 * 22 + 1 + 3 + 2 + 10);
+        // BVH:
+        *d_world = new bvh_node(d_list, 22 * 22 + 1 + 3 + 2 + 10);
 
         // We set up the camera
         vec3 lookfrom(13, 2, 3);
@@ -257,6 +257,17 @@ __global__ void free_world(hitable** d_list, hitable** d_world, camera** d_camer
 }
 
 int main() {
+    // 1) Query the default stack size
+    size_t cur_stack;
+    cudaDeviceGetLimit(&cur_stack, cudaLimitStackSize);
+    std::cerr << "Default CUDA thread stack size: " << cur_stack << " bytes\n";
+
+    // 2) Bump it to 256 KB (most devices support at least this)
+    checkCudaErrors(cudaDeviceSetLimit(cudaLimitStackSize, 256 * 1024));
+
+    // 3) (Optional) bump heap for device-side new()
+    checkCudaErrors(cudaDeviceSetLimit(cudaLimitMallocHeapSize, 64 * 1024 * 1024));
+
     int nx = 1200; // image width
     int ny = 800; // image height
     int ns = 100; // number of samples per pixel
