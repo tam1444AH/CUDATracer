@@ -64,4 +64,4 @@ Finally, to see the image you can convert the PPM to JPG using ImageMagick.
 
 **magick output.ppm output.jpg**
 
-This should create a file called `output.jpg` in the project directory. Which will show the raytraced image.
+This should create a file called `output.jpg` in the project directory. Which will show the raytraced image of the code that is provided.
