@@ -14,7 +14,7 @@
 #include "box.h"
 #include "triangle.h"
 
-#define MEDIUM_DENSITY 0.001f
+#define MEDIUM_DENSITY 0.1f
 #define FOG_COLOR vec3(0.8f, 0.8f, 0.9f)  // a pale bluish fog
 #define RND (curand_uniform(&local_rand_state))
 
@@ -47,40 +47,43 @@ __device__ vec3 color(const ray& r, hitable** world, curandState* local_rand_sta
 			return curAttenuation * background;
 		}
 
-		//float rnd = curand_uniform(local_rand_state); // Enable this code to simulate fog
-  //      float dist_to_scatter = -logf(rnd) / MEDIUM_DENSITY;
 
-  //      if (rec.t < dist_to_scatter) {
-  //          ray scattered;
-  //          vec3 attenuation;
 
-  //          if (rec.mat_ptr->scatter(currentRay, rec, attenuation, scattered, local_rand_state)) {
-  //              curAttenuation *= attenuation;
-  //              currentRay = scattered;
-  //              continue;
-  //          }
-  //          else {
-  //              return vec3(0, 0, 0);
-  //          }
+		float rnd = curand_uniform(local_rand_state); // Enable this code to simulate fog
+        float dist_to_scatter = -logf(rnd) / MEDIUM_DENSITY;
+
+        if (rec.t < dist_to_scatter) {
+            ray scattered;
+            vec3 attenuation;
+
+            if (rec.mat_ptr->scatter(currentRay, rec, attenuation, scattered, local_rand_state)) {
+                curAttenuation *= attenuation;
+                currentRay = scattered;
+                continue;
+            }
+            else {
+                return vec3(0, 0, 0);
+            }
+        }
+
+        vec3 p = currentRay.point_at_parameter(dist_to_scatter);
+        curAttenuation *= FOG_COLOR;
+
+        vec3 new_dir = random_in_unit_sphere(local_rand_state);
+        currentRay = ray(p, new_dir, currentRay.time());
+
+
+
+		//ray scattered; // without fog
+  //      vec3 attenuation;
+  //      if (rec.mat_ptr->scatter(currentRay, rec, attenuation, scattered, local_rand_state)) {
+  //          curAttenuation *= attenuation;
+  //          currentRay = scattered;
+  //          continue;
   //      }
-
-  //      vec3 p = currentRay.point_at_parameter(dist_to_scatter);
-  //      curAttenuation *= FOG_COLOR;
-
-  //      vec3 new_dir = random_in_unit_sphere(local_rand_state);
-  //      currentRay = ray(p, new_dir, currentRay.time());
-
-
-		ray scattered; // without fog
-        vec3 attenuation;
-        if (rec.mat_ptr->scatter(currentRay, rec, attenuation, scattered, local_rand_state)) {
-            curAttenuation *= attenuation;
-            currentRay = scattered;
-            continue;
-        }
-        else {
-            return vec3(0, 0, 0);
-        }
+  //      else {
+  //          return vec3(0, 0, 0);
+  //      }
 
     }
     return vec3(0.0, 0.0, 0.0); // we exceed the max depth, return black
@@ -274,7 +277,10 @@ __global__ void create_world(hitable** d_list, hitable** d_world, camera** d_cam
 		d_list[i++] = new triangle(b0, b2, b3, red6);
 
 		// We set up the world 22*22 little spheres, 3 big ones, 2 boxes and 300 random boxes, 1 pyramid (6 triangles)
-        *d_world = new hitable_list(d_list, 22 * 22 + 1 + 3 + 2 + 30 + 6);
+        /**d_world = new hitable_list(d_list, 22 * 22 + 1 + 3 + 2 + 30 + 6);*/
+		// We create a BVH tree for the world
+        *d_world = new bvh_node(d_list, 22 * 22 + 1 + 3 + 2 + 30 + 6);
+
 
         // We set up the camera
         vec3 lookfrom(13, 2, 3);
@@ -305,9 +311,14 @@ __global__ void free_world(hitable** d_list, hitable** d_world, camera** d_camer
 }
 
 int main() {
-    int nx = 1200; // image width
-    int ny = 800; // image height
-    int ns = 100; // number of samples per pixel
+    size_t cur_stack;
+    cudaDeviceGetLimit(&cur_stack, cudaLimitStackSize);
+    std::cerr << "Default CUDA thread stack size: " << cur_stack << " bytes\n";
+    checkCudaErrors(cudaDeviceSetLimit(cudaLimitStackSize, 256 * 1024));
+    checkCudaErrors(cudaDeviceSetLimit(cudaLimitMallocHeapSize, 64 * 1024 * 1024));
+    int nx = 1920; // image width
+    int ny = 1080; // image height
+    int ns = 10; // number of samples per pixel
     int tx = 16; // block dimensions
     int ty = 16;
 
