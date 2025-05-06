@@ -13,7 +13,7 @@ NVCCFLAGS      += -rdc=true
 HOST_FLAGS     := /EHsc /std:c++14
 
 SRCS = main.cu
-INCS = vec3.h ray.h hitable.h hitable_list.h sphere.h camera.h material.h moving_sphere.h aabb.h bvh.h plane.h box.h
+INCS = vec3.h ray.h hitable.h hitable_list.h sphere.h camera.h material.h moving_sphere.h aabb.h bvh.h plane.h box.h triangle.h
 
 all: cudart.exe
 
